@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Funding collection - single document with total earned
+    match /funding/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Activity logs - public feed
+    match /activityLogs/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Donor logs - permanent donor records
+    match /donorLogs/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Admin notifications - 24h admin alerts
+    match /adminNotifications/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Messages collection (for the sayyes-121 project)
+    match /messages/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
