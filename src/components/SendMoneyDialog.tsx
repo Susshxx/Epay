@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircleIcon,
   CheckCircle2Icon,
+  DownloadIcon,
   Loader2Icon,
   UploadIcon,
   XIcon } from
@@ -58,6 +59,32 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
     setFile(selected);
     setStatus('idle');
     setFeedback(null);
+  };
+
+  const handleDownloadQR = () => {
+    const svg = document.querySelector('svg[role="img"][aria-label*="QR"]');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = 320;
+      canvas.height = 320;
+      ctx?.drawImage(img, 0, 0);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pngUrl;
+      downloadLink.download = 'epay-qr-code.png';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   const handleSendMoney = async () => {
@@ -149,7 +176,7 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 sm:items-start">
-            <div className="flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
               <div className="rounded-[4px] border border-black/10 p-2">
                 <QRCodeSVG
                 value="upi://pay?pa=epay@upi&pn=EPay&cu=NPR"
@@ -158,6 +185,13 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
                 fgColor="#000000" />
 
               </div>
+              <button
+                type="button"
+                onClick={handleDownloadQR}
+                className="flex items-center gap-2 rounded-[5px] border border-black bg-[#F5F5F5] px-4 py-2 font-jeju text-sm text-black transition-colors hover:bg-black/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                <DownloadIcon className="h-4 w-4" aria-hidden="true" />
+                Download QR
+              </button>
             </div>
 
             <div className="flex flex-col gap-5">

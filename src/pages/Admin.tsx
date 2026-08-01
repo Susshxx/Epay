@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BellIcon, LockIcon, PlusIcon } from 'lucide-react';
 import { useActivityLogs } from '../hooks/useActivityLogs';
 import { addActivityLogEntry, subscribeToAdminNotifications, subscribeToFunding, subscribeToSpent } from '../services/fundingService';
@@ -8,6 +9,7 @@ import type { AdminNotification } from '../types/epay';
 const ADMIN_PASSWORD = 'epaygar';
 
 export function Admin() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -75,12 +77,14 @@ export function Admin() {
 
   const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     if (passwordInput === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
       sessionStorage.setItem('admin_authenticated', 'true');
       setPasswordError('');
       setPasswordInput('');
+      // Navigate to admin page to ensure URL is correct
+      navigate('/admin');
     } else {
       setPasswordError('Incorrect password. Please try again.');
       setPasswordInput('');
