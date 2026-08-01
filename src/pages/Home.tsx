@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ActivityLogsCard } from '../components/ActivityLogsCard';
 import { ActivityLogModal } from '../components/ActivityLogModal';
 import { DonationToast } from '../components/DonationToast';
@@ -21,9 +22,10 @@ const DESIGN_WIDTH = 1440;
 const DESIGN_HEIGHT = 1024;
 
 export function Home() {
+  const navigate = useNavigate();
   const scale = useFitToScreen(DESIGN_WIDTH, DESIGN_HEIGHT);
   const { earned, spent, tier, progressPercent, isMaxTier, nextGoal, lastDonation, recordDonation, showMoneyAnimation, handleAnimationComplete } =
-  useFundingProgress();
+    useFundingProgress();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false);
@@ -47,6 +49,19 @@ export function Home() {
     // Show thank you overlay after animation
     setIsThankYouOpen(true);
   };
+
+  // Keyboard shortcut for admin page (Ctrl+Shift+Enter)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'Enter') {
+        event.preventDefault();
+        navigate('/admin');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   return (
     <main className="w-full min-h-screen overflow-x-hidden bg-canvas">
