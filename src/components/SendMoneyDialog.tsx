@@ -10,6 +10,8 @@ import {
 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { verifyPaymentScreenshot, warmupOCR } from '../utils/ocr';
+import { uploadToCloudinary, isCloudinaryConfigured } from '../utils/cloudinary';
+import { submitPendingPayment } from '../services/fundingService';
 
 type SendMoneyDialogProps = {
   isOpen: boolean;
@@ -106,11 +108,13 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
 
     isSubmittingRef.current = true;
     setStatus('verifying');
-    setFeedback('Reading your screenshot…');
+    setFeedback('Verifying payment and uploading screenshot…');
 
     let verified = false;
+    let screenshotUrl = '';
 
     try {
+      // First verify the payment
       const result = await verifyPaymentScreenshot(file, name, 'Marahatta');
 
       if (!result.verified || !result.amount) {
@@ -121,17 +125,36 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
       }
 
       verified = true;
-      await onVerified(result.amount, name.trim(), message.trim());
+      const amount = result.amount;
+
+      // Upload screenshot to Cloudinary if configured
+      if (isCloudinaryConfigured()) {
+        setFeedback('Uploading payment screenshot…');
+        const uploadResult = await uploadToCloudinary(file);
+        
+        if (uploadResult.success && uploadResult.url) {
+          screenshotUrl = uploadResult.url;
+        } else {
+          console.warn('Screenshot upload failed, proceeding without image:', uploadResult.error);
+        }
+      }
+
+      // Submit for admin verification with screenshot URL
+      await submitPendingPayment(amount, name.trim(), message.trim(), screenshotUrl);
 
       setStatus('success');
-      setFeedback(`Rs ${result.amount} verified — thank you, ${name.trim()}!`);
-      resetAndClose();
+      setFeedback(`Payment of Rs ${amount} submitted for verification! We'll process it soon.`);
+      
+      // Close after showing success message
+      setTimeout(() => {
+        resetAndClose();
+      }, 3000);
     } catch (error) {
       setStatus('error');
       setFeedback(
         verified ?
-        "Your payment was verified, but we couldn't save it just now. Please try clicking Send Money again." :
-        'Something went wrong while reading the screenshot. Please try again.'
+        "Your payment was verified, but we couldn't submit it. Please try again." :
+        'Something went wrong while processing your payment. Please try again.'
       );
       isSubmittingRef.current = false;
     }

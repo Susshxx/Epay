@@ -4,6 +4,7 @@ import { BellIcon, LockIcon, PlusIcon } from 'lucide-react';
 import { useActivityLogs } from '../hooks/useActivityLogs';
 import { addActivityLogEntry, subscribeToAdminNotifications, subscribeToFunding, subscribeToSpent } from '../services/fundingService';
 import { requestNotificationPermission, showPaymentNotification } from '../utils/notifications';
+import { PendingPaymentsPanel } from '../components/PendingPaymentsPanel';
 import type { AdminNotification } from '../types/epay';
 
 const ADMIN_PASSWORD = 'epaygar';
@@ -260,6 +261,9 @@ export function Admin() {
             </div>
           )}
         </header>
+
+        {/* Pending Payments Section */}
+        <PendingPaymentsPanel />
 
         <form
           onSubmit={handleSubmit}

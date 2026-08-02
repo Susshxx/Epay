@@ -29,6 +29,18 @@ export type AdminNotification = {
   timestamp: number;
 };
 
+export type PendingPayment = {
+  id: string;
+  amount: number;
+  donorName: string;
+  message: string;
+  screenshotUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: number;
+  reviewedAt?: number;
+  reviewedBy?: string;
+};
+
 export type Tier = {
   level: number;
   name: string;

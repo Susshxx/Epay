@@ -2,24 +2,27 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   increment,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch } from
 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { activityLogs as seedActivityLogs } from '../data/epay';
-import type { ActivityLog, AdminNotification } from '../types/epay';
+import type { ActivityLog, AdminNotification, PendingPayment } from '../types/epay';
 
 const STARTING_EARNED = 0;
 const FUNDING_COLLECTION = 'funding';
 const FUNDING_DOC_ID = 'stats';
 const ACTIVITY_COLLECTION = 'activityLogs';
 const NOTIFICATIONS_COLLECTION = 'adminNotifications';
+const PENDING_PAYMENTS_COLLECTION = 'pendingPayments';
 // Permanent, un-windowed record of every verified donor — distinct from
 // adminNotifications, which only surfaces the last 24 hours for the admin
 // bell/toast UI and isn't meant to double as a historical log.
@@ -55,6 +58,9 @@ const notificationListeners = new Set<Listener<AdminNotification[]>>();
 let localDonorLogs: DonorLog[] = [];
 const donorLogListeners = new Set<Listener<DonorLog[]>>();
 
+let localPendingPayments: PendingPayment[] = [];
+const pendingPaymentListeners = new Set<Listener<PendingPayment[]>>();
+
 function notifyFunding() {
   fundingListeners.forEach((listener) => listener(localEarned));
 }
@@ -69,6 +75,10 @@ function notifyNotifications() {
 
 function notifyDonorLogs() {
   donorLogListeners.forEach((listener) => listener(localDonorLogs));
+}
+
+function notifyPendingPayments() {
+  pendingPaymentListeners.forEach((listener) => listener(localPendingPayments));
 }
 
 function buildDetail(donorName: string, message: string): string {
@@ -248,6 +258,7 @@ message: string)
       batch.set(activityRef, {
         amount: `Rs ${amount}`,
         detail,
+        isSpent: false, // Donations are earned entries
         createdAt: serverTimestamp()
       });
 
@@ -281,7 +292,7 @@ message: string)
   localEarned += amount;
 
   localActivity = [
-  { id: `local-${Date.now()}`, amount: `Rs ${amount}`, detail, createdAt: Date.now() },
+  { id: `local-${Date.now()}`, amount: `Rs ${amount}`, detail, isSpent: false, createdAt: Date.now() },
   ...localActivity].
   slice(0, ACTIVITY_LIMIT);
 
@@ -301,7 +312,7 @@ message: string)
   notifyNotifications();
 }
 
-/** Lets an admin add an activity log entry directly (no funding change). */
+/** Lets an admin add an activity log entry directly. Updates funding based on entry type. */
 export async function addActivityLogEntry(amount: string, detail: string, isSpent: boolean = false): Promise<void> {
   // Extract numeric amount from string like "Rs 12000"
   const numericAmount = parseInt(amount.replace(/\D/g, ''), 10);
@@ -319,10 +330,16 @@ export async function addActivityLogEntry(amount: string, detail: string, isSpen
         createdAt: serverTimestamp()
       });
 
-      // If this is a spent entry, reduce the funding total
-      if (isSpent && !isNaN(numericAmount)) {
+      // Update the funding total based on entry type
+      if (!isNaN(numericAmount)) {
         const fundingRef = doc(db, FUNDING_COLLECTION, FUNDING_DOC_ID);
-        batch.set(fundingRef, { earned: increment(-numericAmount) }, { merge: true });
+        if (isSpent) {
+          // Reduce earned for spent entries
+          batch.set(fundingRef, { earned: increment(-numericAmount) }, { merge: true });
+        } else {
+          // Increase earned for earned entries
+          batch.set(fundingRef, { earned: increment(numericAmount) }, { merge: true });
+        }
       }
 
       await batch.commit();
@@ -338,9 +355,13 @@ export async function addActivityLogEntry(amount: string, detail: string, isSpen
   ...localActivity].
   slice(0, ACTIVITY_LIMIT);
 
-  // If this is a spent entry, reduce local earned amount
-  if (isSpent && !isNaN(numericAmount)) {
-    localEarned = Math.max(0, localEarned - numericAmount);
+  // Update local earned amount based on entry type
+  if (!isNaN(numericAmount)) {
+    if (isSpent) {
+      localEarned = Math.max(0, localEarned - numericAmount);
+    } else {
+      localEarned += numericAmount;
+    }
     notifyFunding();
   }
 
@@ -404,4 +425,236 @@ export function subscribeToSpent(callback: Listener<number>): () => void {
   const spentListeners = new Set<Listener<number>>();
   spentListeners.add(callback);
   return () => spentListeners.delete(callback);
+}
+
+/**
+ * Submit a payment for admin verification with screenshot
+ */
+export async function submitPendingPayment(
+  amount: number,
+  donorName: string,
+  message: string,
+  screenshotUrl: string
+): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const pendingPaymentRef = doc(collection(db, PENDING_PAYMENTS_COLLECTION));
+      await addDoc(collection(db, PENDING_PAYMENTS_COLLECTION), {
+        amount,
+        donorName,
+        message,
+        screenshotUrl,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      console.log('Pending payment submitted successfully');
+      return;
+    } catch (error) {
+      console.warn('Firebase write failed, falling back to local mode:', error);
+      // Fall through to local mode
+    }
+  }
+
+  // Local mode
+  localPendingPayments = [
+    {
+      id: `pending-${Date.now()}`,
+      amount,
+      donorName,
+      message,
+      screenshotUrl,
+      status: 'pending',
+      createdAt: Date.now()
+    },
+    ...localPendingPayments
+  ];
+  notifyPendingPayments();
+}
+
+/**
+ * Subscribe to pending payments for admin review
+ */
+export function subscribeToPendingPayments(callback: Listener<PendingPayment[]>): () => void {
+  if (isFirebaseConfigured && db) {
+    try {
+      const pendingQuery = query(
+        collection(db, PENDING_PAYMENTS_COLLECTION),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+      );
+      return onSnapshot(
+        pendingQuery,
+        (snapshot) => {
+          const payments: PendingPayment[] = snapshot.docs.map((docSnapshot) => {
+            const data = docSnapshot.data();
+            return {
+              id: docSnapshot.id,
+              amount: data.amount as number,
+              donorName: data.donorName as string,
+              message: data.message as string,
+              screenshotUrl: data.screenshotUrl as string,
+              status: data.status as 'pending' | 'approved' | 'rejected',
+              createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
+              reviewedAt: data.reviewedAt?.toMillis?.(),
+              reviewedBy: data.reviewedBy as string | undefined
+            };
+          });
+          callback(payments);
+        },
+        (error) => {
+          console.warn('Firebase subscription failed, falling back to local mode:', error);
+          callback(localPendingPayments.filter(p => p.status === 'pending'));
+        }
+      );
+    } catch (error) {
+      console.warn('Firebase subscription setup failed, falling back to local mode:', error);
+      // Fall through to local mode
+    }
+  }
+
+  const pendingLocal = localPendingPayments.filter(p => p.status === 'pending');
+  callback(pendingLocal);
+  pendingPaymentListeners.add(callback);
+  return () => pendingPaymentListeners.delete(callback);
+}
+
+/**
+ * Approve a pending payment (admin action)
+ */
+export async function approvePendingPayment(paymentId: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const paymentRef = doc(db, PENDING_PAYMENTS_COLLECTION, paymentId);
+      
+      // Get the payment data first
+      const paymentDoc = await getDoc(paymentRef);
+      if (!paymentDoc.exists()) {
+        throw new Error('Payment not found');
+      }
+      
+      const paymentData = paymentDoc.data();
+      const amount = paymentData.amount as number;
+      const donorName = paymentData.donorName as string;
+      const message = paymentData.message as string;
+
+      // Update payment status and record the donation in one batch
+      const batch = writeBatch(db);
+      
+      batch.update(paymentRef, {
+        status: 'approved',
+        reviewedAt: serverTimestamp()
+      });
+
+      // Record the donation
+      const fundingRef = doc(db, FUNDING_COLLECTION, FUNDING_DOC_ID);
+      batch.set(fundingRef, { earned: increment(amount) }, { merge: true });
+
+      const activityRef = doc(collection(db, ACTIVITY_COLLECTION));
+      const detail = message ? `Received from ${donorName} — ${message}` : `Received from ${donorName}`;
+      batch.set(activityRef, {
+        amount: `Rs ${amount}`,
+        detail,
+        isSpent: false,
+        createdAt: serverTimestamp()
+      });
+
+      const donorLogRef = doc(collection(db, DONOR_LOGS_COLLECTION));
+      batch.set(donorLogRef, {
+        donorName,
+        amount,
+        message,
+        createdAt: serverTimestamp()
+      });
+
+      const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+      batch.set(notificationRef, {
+        amount,
+        donorName,
+        message,
+        timestamp: serverTimestamp()
+      });
+
+      await batch.commit();
+      console.log('Payment approved and recorded');
+      return;
+    } catch (error) {
+      console.error('Firebase approval failed:', error);
+      throw error;
+    }
+  }
+
+  // Local mode
+  const payment = localPendingPayments.find(p => p.id === paymentId);
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  payment.status = 'approved';
+  payment.reviewedAt = Date.now();
+
+  // Record the donation locally
+  localEarned += payment.amount;
+  const detail = payment.message 
+    ? `Received from ${payment.donorName} — ${payment.message}` 
+    : `Received from ${payment.donorName}`;
+  
+  localActivity = [
+    { id: `local-${Date.now()}`, amount: `Rs ${payment.amount}`, detail, isSpent: false, createdAt: Date.now() },
+    ...localActivity
+  ].slice(0, ACTIVITY_LIMIT);
+
+  localDonorLogs = [
+    { id: `donor-${Date.now()}`, donorName: payment.donorName, amount: payment.amount, message: payment.message, createdAt: Date.now() },
+    ...localDonorLogs
+  ].slice(0, DONOR_LOGS_LIMIT);
+
+  localNotifications = [
+    { id: `notif-${Date.now()}`, amount: payment.amount, donorName: payment.donorName, message: payment.message, timestamp: Date.now() },
+    ...localNotifications
+  ].slice(0, NOTIFICATIONS_LIMIT);
+
+  notifyFunding();
+  notifyActivity();
+  notifyDonorLogs();
+  notifyNotifications();
+  notifyPendingPayments();
+}
+
+/**
+ * Reject a pending payment (admin action)
+ */
+export async function rejectPendingPayment(paymentId: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const paymentRef = doc(db, PENDING_PAYMENTS_COLLECTION, paymentId);
+      
+      // Check if payment exists before updating
+      const paymentDoc = await getDoc(paymentRef);
+      if (!paymentDoc.exists()) {
+        throw new Error('Payment not found');
+      }
+      
+      // Update status to rejected
+      await updateDoc(paymentRef, {
+        status: 'rejected',
+        reviewedAt: serverTimestamp()
+      });
+      
+      console.log('Payment rejected successfully');
+      return;
+    } catch (error) {
+      console.error('Firebase rejection failed:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to reject payment');
+    }
+  }
+
+  // Local mode
+  const payment = localPendingPayments.find(p => p.id === paymentId);
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  payment.status = 'rejected';
+  payment.reviewedAt = Date.now();
+  notifyPendingPayments();
 }

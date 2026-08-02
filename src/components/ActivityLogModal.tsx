@@ -73,7 +73,7 @@ export function ActivityLogModal({ isOpen, onClose }: ActivityLogModalProps) {
                     )}
                   </div>
                 </div>
-                <span className={`shrink-0 font-jeju text-lg leading-6 ${log.isSpent ? 'text-[#B3261E]' : 'text-[#2E7D32]'}`}>
+                <span className={`shrink-0 font-jeju text-lg leading-6 ${log.isSpent === true ? 'text-[#B3261E]' : 'text-[#2E7D32]'}`}>
                   {log.amount}
                 </span>
               </li>

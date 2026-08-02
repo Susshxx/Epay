@@ -37,7 +37,7 @@ export function ActivityLogsCard({ onViewAll }: ActivityLogsCardProps) {
             className="flex h-[53px] items-center rounded-[6px] border border-black bg-white px-[14px]">
             
               <p className="truncate font-jeju text-2xl leading-6 text-black">
-                <span className="text-[#B3261E]">{log.amount}</span>
+                <span className={log.isSpent === true ? "text-[#B3261E]" : "text-[#2E7D32]"}>{log.amount}</span>
                 <span> – {log.detail}</span>
               </p>
             </li>
