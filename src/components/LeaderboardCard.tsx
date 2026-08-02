@@ -52,7 +52,7 @@ export function LeaderboardCard({ onViewAll }: LeaderboardCardProps) {
             {leaderboard.slice(0, 3).map((entry) =>
             <tr key={entry.rank} className="h-[37px] align-middle">
                 <td className="border-t border-black text-2xl leading-6">{entry.rank}</td>
-                <td className="border-l border-t border-black pl-[9px] text-base leading-4">
+                <td className="truncate border-l border-t border-black pl-[9px] text-base leading-4">
                   {entry.name}
                 </td>
                 <td className="truncate border-l border-t border-black pl-[9px] text-xs leading-3">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityLogsCard } from '../components/ActivityLogsCard';
 import { ActivityLogModal } from '../components/ActivityLogModal';
+import { CareersSection } from '../components/CareersSection';
 import { DonationToast } from '../components/DonationToast';
 import { DonorCard } from '../components/DonorCard';
 import { DonorsModal } from '../components/DonorsModal';
@@ -21,17 +22,26 @@ import { playCoinSound } from '../utils/sound';
 const DESIGN_WIDTH = 1440;
 const DESIGN_HEIGHT = 1024;
 
-export function Home() {
+type HomeProps = {
+  isDialogOpen?: boolean;
+  setIsDialogOpen?: (open: boolean) => void;
+};
+
+export function Home({ isDialogOpen: externalIsDialogOpen, setIsDialogOpen: externalSetIsDialogOpen }: HomeProps = {}) {
   const navigate = useNavigate();
   const scale = useFitToScreen(DESIGN_WIDTH, DESIGN_HEIGHT);
   const { earned, spent, tier, progressPercent, isMaxTier, nextGoal, lastDonation, recordDonation, showMoneyAnimation, handleAnimationComplete } =
     useFundingProgress();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [internalIsDialogOpen, internalSetIsDialogOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [isDonorsModalOpen, setIsDonorsModalOpen] = useState(false);
   const [isThankYouOpen, setIsThankYouOpen] = useState(false);
   const [showFallingAnimation, setShowFallingAnimation] = useState(false);
   const [lastDonationAmount, setLastDonationAmount] = useState(0);
+
+  // Use external state if provided, otherwise use internal state
+  const isDialogOpen = externalIsDialogOpen ?? internalIsDialogOpen;
+  const setIsDialogOpen = externalSetIsDialogOpen ?? internalSetIsDialogOpen;
 
   const handleDonationVerified = async (amount: number, donorName: string, message: string) => {
     await recordDonation(amount, donorName, message);
@@ -78,7 +88,7 @@ export function Home() {
               src="/image.png"
               alt=""
               aria-hidden="true"
-              className="absolute -left-4 -top-4 h-50 w-60 shrink-0 z-20" />
+              className="absolute -left-4 top-4 h-50 w-60 shrink-0 z-20" />
 
             <h1 className="font-didot text-3xl leading-tight text-black sm:text-4xl">E-Pay</h1>
           </header>
@@ -132,6 +142,8 @@ export function Home() {
         </section>
 
         <MoneyTotals earned={earned} spent={spent} />
+
+        <CareersSection />
 
         <ActivityLogsCard onViewAll={() => setIsActivityLogModalOpen(true)} />
 
@@ -274,9 +286,9 @@ export function Home() {
             <h2
               id="join-us-heading"
               className="w-[242px] font-jeju text-[32px] leading-8 text-black">
-              
-              Join Us:
-              <br />
+
+
+
               Become one of us
             </h2>
           </section>
@@ -289,9 +301,13 @@ export function Home() {
             type="button"
             onClick={() => setIsDonorsModalOpen(true)}
             className="absolute left-[1147px] top-[440px] font-jeju text-2xl leading-6 text-black underline-offset-4 transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-black">
-            
+
             View All Donors
           </button>
+
+          <div className="absolute left-[1150px] top-[480px]">
+            <CareersSection />
+          </div>
 
           <div className="absolute left-[1143px] top-[537px]">
             <p className="font-jeju text-[32px] leading-8 text-black">
@@ -301,7 +317,7 @@ export function Home() {
               <div
                 className="h-full bg-mint transition-all duration-500 ease-out"
                 style={{ width: `${progressPercent}%` }} />
-              
+
             </div>
             <p className="sr-only">Rs {earned} raised so far</p>
           </div>

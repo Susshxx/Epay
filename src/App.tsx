@@ -14,13 +14,38 @@
 
 // }
 
-import React from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Admin } from './pages/Admin';
+import { Careers } from './pages/Careers';
 import { Home } from './pages/Home';
 import { SplashScreen } from './components/SplashScreen';
+import { useBackgroundMusic } from './hooks/useBackgroundMusic';
+
+function AppContent() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const location = useLocation();
+
+  // Check if we should open the dialog from navigation state
+  if (location.state?.openDialog) {
+    setIsDialogOpen(true);
+    // Clear the state to prevent reopening
+    window.history.replaceState({}, document.title, location.pathname);
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Home isDialogOpen={isDialogOpen} setIsDialogOpen={setIsDialogOpen} />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/careers" element={<Careers />} />
+    </Routes>
+  );
+}
 
 export function App() {
+  // Play sad background music on loop throughout the app
+  useBackgroundMusic('/crymale.mp3', 0.3);
+
   return (
     <BrowserRouter
       future={{
@@ -28,10 +53,7 @@ export function App() {
         v7_relativeSplatPath: true
       }}>
       <SplashScreen />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
+      <AppContent />
     </BrowserRouter>);
 
 }
