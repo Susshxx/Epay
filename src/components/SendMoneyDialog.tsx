@@ -8,7 +8,6 @@ import {
   UploadIcon,
   XIcon } from
 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { verifyPaymentScreenshot, warmupOCR } from '../utils/ocr';
 import { uploadToCloudinary, isCloudinaryConfigured } from '../utils/cloudinary';
 import { submitPendingPayment } from '../services/fundingService';
@@ -64,29 +63,13 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
   };
 
   const handleDownloadQR = () => {
-    const svg = document.querySelector('svg[role="img"][aria-label*="QR"]');
-    if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    img.onload = () => {
-      canvas.width = 320;
-      canvas.height = 320;
-      ctx?.drawImage(img, 0, 0);
-
-      const pngUrl = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pngUrl;
-      downloadLink.download = 'epay-qr-code.png';
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-    };
-
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    // Create a temporary link to download the image
+    const link = document.createElement('a');
+    link.href = '/Qrimg.jpeg';
+    link.download = 'epay-qr-code.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleSendMoney = async () => {
@@ -201,12 +184,13 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 sm:items-start">
             <div className="flex flex-col items-center gap-3">
               <div className="rounded-[4px] border border-black/10 p-2">
-                <QRCodeSVG
-                value="upi://pay?pa=epay@upi&pn=EPay&cu=NPR"
-                size={320}
-                bgColor="#ffffff"
-                fgColor="#000000" />
-
+                <img
+                  src="/Qrimg.jpeg"
+                  alt="Payment QR Code"
+                  width={320}
+                  height={320}
+                  className="h-[320px] w-[320px]"
+                />
               </div>
               <button
                 type="button"
