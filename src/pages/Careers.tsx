@@ -74,7 +74,7 @@ export function Careers() {
           {openPositions.map((position, index) => (
             <motion.div
               key={position.id}
-              className="flex flex-row gap-6 rounded-[8px] border-2 border-black bg-[#EAE8E8]/50 p-6 shadow-[3px_3px_0px_rgba(0,0,0,1)]"
+              className="flex flex-col sm:flex-row gap-6 rounded-[8px] border-2 border-black bg-[#EAE8E8]/50 p-6 shadow-[3px_3px_0px_rgba(0,0,0,1)]"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -97,11 +97,11 @@ export function Careers() {
                 </p>
               </div>
               
-              <div className="flex shrink-0 items-center">
+              <div className="flex shrink-0 items-center sm:items-center">
                 <button
                   type="button"
                   onClick={handleJoinUs}
-                  className="rounded-[5px] border-2 border-black bg-mint px-8 py-3 font-jeju text-lg font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[1px_1px_0px_rgba(0,0,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="w-full sm:w-auto rounded-[5px] border-2 border-black bg-mint px-8 py-3 font-jeju text-lg font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[1px_1px_0px_rgba(0,0,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   Apply Now! 🚀
                 </button>
@@ -115,7 +115,7 @@ export function Careers() {
             <motion.button
               type="button"
               onClick={handleJoinUs}
-              className="w-full sm:w-auto sm:flex-1 max-w-[450px] rounded-[5px] border-2 border-black bg-mint py-4 px-6 font-jeju text-xl sm:text-2xl font-bold text-black shadow-[5px_5px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-1 hover:shadow-[7px_7px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-black"
+              className="w-full sm:w-auto sm:flex-1 max-w-[450px] rounded-[5px] border-2 border-black bg-mint py-4 px-6 font-jeju text-l sm:text-2xl font-bold text-black shadow-[5px_5px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-1 hover:shadow-[7px_7px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-black"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}

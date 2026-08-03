@@ -88,7 +88,7 @@ export function Home({ isDialogOpen: externalIsDialogOpen, setIsDialogOpen: exte
               src="/image.png"
               alt=""
               aria-hidden="true"
-              className="absolute -left-4 top-4 h-50 w-60 shrink-0 z-20 hidden sm:block" />
+              className="absolute -left-4 top-4 h-50 w-60 shrink-0 z-20 hidden lg:block" />
 
             <h1 className="font-didot text-3xl leading-tight text-black sm:text-4xl">E-Pay</h1>
           </header>
@@ -211,7 +211,7 @@ export function Home({ isDialogOpen: externalIsDialogOpen, setIsDialogOpen: exte
               aria-hidden="true"
               width={120}
               height={220}
-              className="absolute -left-6 -top-6 h-[120px] w-[220px] z-20 hidden sm:block" />
+              className="absolute -left-6 -top-6 h-[120px] w-[220px] z-20 hidden lg:block" />
 
             <h1 className="font-didot text-[32px] leading-10 text-black">E-Pay</h1>
           </header>
