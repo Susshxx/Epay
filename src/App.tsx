@@ -44,7 +44,8 @@ function AppContent() {
 
 export function App() {
   // Play sad background music on loop throughout the app
-  useBackgroundMusic('/crymale.mp3', 0.3);
+  // Music starts muted immediately, then fades in after 1 second
+  useBackgroundMusic('/crymale.mp3', 0.3, 1000);
 
   return (
     <BrowserRouter

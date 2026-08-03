@@ -118,8 +118,15 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
         if (uploadResult.success && uploadResult.url) {
           screenshotUrl = uploadResult.url;
         } else {
-          console.warn('Screenshot upload failed, proceeding without image:', uploadResult.error);
+          console.warn('Screenshot upload failed, proceeding with base64:', uploadResult.error);
+          // Fallback to base64 data URL
+          screenshotUrl = await fileToBase64(file);
         }
+      } else {
+        // Convert to base64 data URL when Cloudinary is not configured
+        setFeedback('Processing payment screenshot…');
+        screenshotUrl = await fileToBase64(file);
+        console.log('Cloudinary not configured, using base64 data URL');
       }
 
       // Submit for admin verification with screenshot URL
@@ -141,6 +148,16 @@ export function SendMoneyDialog({ isOpen, onClose, onVerified }: SendMoneyDialog
       );
       isSubmittingRef.current = false;
     }
+  };
+
+  // Helper function to convert File to base64 data URL
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   return (

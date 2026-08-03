@@ -26,6 +26,12 @@ service cloud.firestore {
       allow write: if true;
     }
     
+    // Pending payments - awaiting admin verification
+    match /pendingPayments/{document} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
     // Messages collection (for the sayyes-121 project)
     match /messages/{document} {
       allow read: if true;

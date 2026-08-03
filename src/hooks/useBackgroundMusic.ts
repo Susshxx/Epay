@@ -1,86 +1,107 @@
 import { useEffect, useRef } from 'react';
 
-export function useBackgroundMusic(audioPath: string, volume: number = 0.3) {
+export function useBackgroundMusic(audioPath: string, volume: number = 0.3, delayMs: number = 1000) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasPlayedRef = useRef(false);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
     // Create audio element
     const audio = new Audio(audioPath);
     audio.loop = true;
-    audio.volume = volume;
+    audio.volume = 0; // Start at 0 volume
     audio.preload = 'auto';
     audioRef.current = audio;
 
-    // Try to play immediately (will fail in most browsers)
-    const attemptPlay = () => {
-      if (!hasPlayedRef.current) {
-        const playPromise = audio.play();
+    // Start playing muted immediately (allowed by browsers)
+    const startMutedMusic = async () => {
+      try {
+        // Start playing muted (browsers allow this)
+        await audio.play();
+        hasStartedRef.current = true;
+        console.log('Background music started (muted)');
+
+        // After delay, fade in the volume
+        setTimeout(() => {
+          fadeInVolume(audio, volume, 1500); // Fade in over 1.5 seconds
+        }, delayMs);
+      } catch (error) {
+        console.log('Failed to start music, will try on user interaction:', error);
+        // Fallback: start on user interaction
+        setupInteractionListeners(audio, volume, delayMs);
+      }
+    };
+
+    // Fade in volume gradually
+    const fadeInVolume = (audio: HTMLAudioElement, targetVolume: number, duration: number) => {
+      const steps = 50;
+      const stepDuration = duration / steps;
+      const volumeIncrement = targetVolume / steps;
+      let currentStep = 0;
+
+      const fadeInterval = setInterval(() => {
+        currentStep++;
+        audio.volume = Math.min(volumeIncrement * currentStep, targetVolume);
         
-        if (playPromise !== undefined) {
-          playPromise
+        if (currentStep >= steps) {
+          clearInterval(fadeInterval);
+          console.log(`Background music faded in to volume ${targetVolume}`);
+        }
+      }, stepDuration);
+    };
+
+    // Fallback: setup interaction listeners
+    const setupInteractionListeners = (audio: HTMLAudioElement, targetVolume: number, delay: number) => {
+      const handleUserInteraction = () => {
+        if (!hasStartedRef.current) {
+          audio.play()
             .then(() => {
-              hasPlayedRef.current = true;
-              console.log('Background music started');
+              hasStartedRef.current = true;
+              console.log('Background music started after user interaction');
+              setTimeout(() => {
+                fadeInVolume(audio, targetVolume, 1500);
+              }, delay);
+              removeListeners();
             })
             .catch((error) => {
-              console.log('Autoplay prevented. Music will start on first user interaction:', error.message);
+              console.log('Failed to play music:', error.message);
             });
         }
-      }
-    };
+      };
 
-    attemptPlay();
+      const removeListeners = () => {
+        document.removeEventListener('click', handleUserInteraction, true);
+        document.removeEventListener('touchstart', handleUserInteraction, true);
+        document.removeEventListener('keydown', handleUserInteraction, true);
+      };
 
-    // Play on ANY user interaction (click, touch, keypress, scroll)
-    const handleUserInteraction = () => {
-      if (audio.paused && !hasPlayedRef.current) {
-        audio.play()
-          .then(() => {
-            hasPlayedRef.current = true;
-            console.log('Background music started after user interaction');
-            // Remove all listeners after successful play
-            removeListeners();
-          })
-          .catch((error) => {
-            console.log('Failed to play music:', error);
-          });
-      }
-    };
-
-    const removeListeners = () => {
-      window.removeEventListener('click', handleUserInteraction);
-      window.removeEventListener('touchstart', handleUserInteraction);
-      window.removeEventListener('keydown', handleUserInteraction);
-      window.removeEventListener('scroll', handleUserInteraction);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('click', handleUserInteraction, { once: true, capture: true });
+      document.addEventListener('touchstart', handleUserInteraction, { once: true, capture: true });
+      document.addEventListener('keydown', handleUserInteraction, { once: true, capture: true });
     };
 
     // Resume music when tab becomes visible again
     const handleVisibilityChange = () => {
-      if (!document.hidden && hasPlayedRef.current && audio.paused) {
+      if (!document.hidden && hasStartedRef.current && audio.paused) {
         audio.play().catch(() => {
           // Ignore errors
         });
       }
     };
 
-    // Add multiple event listeners to catch any interaction
-    window.addEventListener('click', handleUserInteraction);
-    window.addEventListener('touchstart', handleUserInteraction);
-    window.addEventListener('keydown', handleUserInteraction);
-    window.addEventListener('scroll', handleUserInteraction, { once: true });
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Start the music (muted initially)
+    startMutedMusic();
 
     // Cleanup
     return () => {
-      removeListeners();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       audio.pause();
       audio.currentTime = 0;
       audioRef.current = null;
-      hasPlayedRef.current = false;
+      hasStartedRef.current = false;
     };
-  }, [audioPath, volume]);
+  }, [audioPath, volume, delayMs]);
 
   // Optional: method to pause/resume music
   const toggleMusic = () => {

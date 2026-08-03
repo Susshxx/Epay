@@ -436,10 +436,11 @@ export async function submitPendingPayment(
   message: string,
   screenshotUrl: string
 ): Promise<void> {
+  console.log('Submitting pending payment:', { amount, donorName, message, screenshotUrlLength: screenshotUrl.length });
+  
   if (isFirebaseConfigured && db) {
     try {
-      const pendingPaymentRef = doc(collection(db, PENDING_PAYMENTS_COLLECTION));
-      await addDoc(collection(db, PENDING_PAYMENTS_COLLECTION), {
+      const docRef = await addDoc(collection(db, PENDING_PAYMENTS_COLLECTION), {
         amount,
         donorName,
         message,
@@ -447,15 +448,19 @@ export async function submitPendingPayment(
         status: 'pending',
         createdAt: serverTimestamp()
       });
-      console.log('Pending payment submitted successfully');
+      console.log('✅ Pending payment submitted successfully to Firebase with ID:', docRef.id);
       return;
     } catch (error) {
-      console.warn('Firebase write failed, falling back to local mode:', error);
+      console.error('❌ Firebase write failed for pending payment:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
       // Fall through to local mode
     }
   }
 
   // Local mode
+  console.log('Using local mode for pending payment submission');
   localPendingPayments = [
     {
       id: `pending-${Date.now()}`,
@@ -477,10 +482,10 @@ export async function submitPendingPayment(
 export function subscribeToPendingPayments(callback: Listener<PendingPayment[]>): () => void {
   if (isFirebaseConfigured && db) {
     try {
+      // Query without orderBy to avoid composite index requirement
       const pendingQuery = query(
         collection(db, PENDING_PAYMENTS_COLLECTION),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'pending')
       );
       return onSnapshot(
         pendingQuery,
@@ -499,20 +504,27 @@ export function subscribeToPendingPayments(callback: Listener<PendingPayment[]>)
               reviewedBy: data.reviewedBy as string | undefined
             };
           });
+          
+          // Sort by createdAt in memory (newest first)
+          payments.sort((a, b) => b.createdAt - a.createdAt);
+          
+          console.log(`Found ${payments.length} pending payment(s)`);
           callback(payments);
         },
         (error) => {
-          console.warn('Firebase subscription failed, falling back to local mode:', error);
+          console.error('Firebase subscription failed for pending payments:', error);
+          console.error('Error details:', error.code, error.message);
           callback(localPendingPayments.filter(p => p.status === 'pending'));
         }
       );
     } catch (error) {
-      console.warn('Firebase subscription setup failed, falling back to local mode:', error);
+      console.error('Firebase subscription setup failed for pending payments:', error);
       // Fall through to local mode
     }
   }
 
   const pendingLocal = localPendingPayments.filter(p => p.status === 'pending');
+  console.log(`Using local mode: ${pendingLocal.length} pending payment(s)`);
   callback(pendingLocal);
   pendingPaymentListeners.add(callback);
   return () => pendingPaymentListeners.delete(callback);
